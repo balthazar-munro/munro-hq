@@ -5,7 +5,14 @@ import LocalChatView from './LocalChatView'
 
 export default async function ChatPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+  // Debug logging
+  console.log('🔍 [ChatPage] getUser result:', { 
+    userId: user?.id, 
+    email: user?.email,
+    error: userError?.message 
+  })
 
   // If we have a Supabase authenticated user, show full chat with their data
   if (user) {

@@ -12,6 +12,22 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
+  position: relative;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)),
+    url('/family-background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .messages {
+    background-image: 
+      linear-gradient(rgba(30, 30, 30, 0.9), rgba(30, 30, 30, 0.9)),
+      url('/family-background.jpg');
+  }
 }
 
 .loading {

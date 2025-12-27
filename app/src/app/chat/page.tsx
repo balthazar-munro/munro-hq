@@ -1,18 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import ChatLayout from '@/components/layout/ChatLayout'
 import ChatClientWrapper from './ChatClientWrapper'
-import LocalChatView from './LocalChatView'
+
 
 export default async function ChatPage() {
   const supabase = await createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-
-  // Debug logging
-  console.log('🔍 [ChatPage] getUser result:', { 
-    userId: user?.id, 
-    email: user?.email,
-    error: userError?.message 
-  })
+  const { data: { user } } = await supabase.auth.getUser()
 
   // If we have a Supabase authenticated user, show full chat with their data
   if (user) {
@@ -61,10 +54,18 @@ export default async function ChatPage() {
     )
   }
 
-  // No Supabase user - check for local PIN session (client-side)
+  // No Supabase user - ChatClientWrapper will check for session and redirect if needed
   return (
     <ChatClientWrapper>
-      <LocalChatView />
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        height: '100vh',
+        background: 'var(--color-bg)'
+      }}>
+        <p>Loading...</p>
+      </div>
     </ChatClientWrapper>
   )
 }

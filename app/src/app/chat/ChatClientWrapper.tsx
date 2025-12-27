@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 interface ChatClientWrapperProps {
   children: React.ReactNode
@@ -25,17 +26,38 @@ export default function ChatClientWrapper({ children }: ChatClientWrapperProps) 
   useEffect(() => {
     // If still loading, check auth after a tiny delay
     if (authStatus === 'loading') {
-      const timer = setTimeout(() => {
+      const checkAuth = async () => {
+        // First check PIN auth
         const pinUnlocked = sessionStorage.getItem('pin_unlocked')
         const currentIdentity = sessionStorage.getItem('current_identity')
         
         if (pinUnlocked === 'true' && currentIdentity) {
           setAuthStatus('authenticated')
-        } else {
-          setAuthStatus('unauthenticated')
-          router.replace('/login')
+          return
         }
-      }, 50)
+
+        // If no PIN auth, check if there's a Supabase session
+        // If yes, the user logged in via magic link - need to reload for server-side render
+        try {
+          const supabase = createClient()
+          const { data: { session } } = await supabase.auth.getSession()
+          
+          if (session) {
+            console.log('🔄 [ChatClientWrapper] Found Supabase session, reloading page for proper render')
+            // Force a full page reload so server-side can detect the session
+            window.location.reload()
+            return
+          }
+        } catch (error) {
+          console.error('Error checking Supabase session:', error)
+        }
+
+        // No auth at all - redirect to login
+        setAuthStatus('unauthenticated')
+        router.replace('/login')
+      }
+      
+      const timer = setTimeout(checkAuth, 50)
       return () => clearTimeout(timer)
     }
   }, [authStatus, router])

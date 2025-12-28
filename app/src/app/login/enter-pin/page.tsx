@@ -25,10 +25,13 @@ function EnterPinForm() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)
+      } else {
+        // No session - redirect to request magic link
+        router.push('/login/request-link')
       }
     }
     checkSession()
-  }, [supabase])
+  }, [supabase, router])
 
   // Validate identity
   const isValidIdentity = FAMILY_IDENTITIES.includes(identity as typeof FAMILY_IDENTITIES[number])
@@ -47,10 +50,9 @@ function EnterPinForm() {
     setError('')
 
     try {
-      // Require user ID - no localStorage fallback
+      // Session should exist (redirected if not), but double-check
       if (!userId) {
-        setError('No active session. Please complete identity verification first.')
-        setVerifying(false)
+        router.push('/login/request-link')
         return
       }
 

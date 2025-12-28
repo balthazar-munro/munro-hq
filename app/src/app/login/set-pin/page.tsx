@@ -30,10 +30,13 @@ function SetPinForm() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)
+      } else {
+        // No session - redirect to request magic link
+        router.push('/login/request-link')
       }
     }
     checkSession()
-  }, [supabase])
+  }, [supabase, router])
 
   const handlePinInput = (value: string, isConfirm: boolean) => {
     const digits = value.replace(/\D/g, '').slice(0, 6)
@@ -64,10 +67,9 @@ function SetPinForm() {
     setError('')
 
     try {
-      // Require Supabase session - no localStorage fallback
+      // Session should exist (redirected if not), but double-check
       if (!userId) {
-        setError('No active session. Please complete identity verification first.')
-        setLoading(false)
+        router.push('/login/request-link')
         return
       }
 

@@ -90,6 +90,22 @@
 
 ## 🚀 Deployment Steps
 
+### Step 0: Configure Session Duration (Required First!)
+
+**IMPORTANT**: Configure Supabase for 1-year sessions BEFORE deploying.
+
+1. **Go to Supabase Dashboard** → **Authentication** → **Settings**
+2. **Scroll to "JWT Settings"**
+3. **Set JWT expiry limit**: `31536000` (seconds = 1 year)
+4. **Set Refresh token expiry**: `31536000` (seconds = 1 year)
+5. **Click "Save Changes"**
+
+This enables PIN-only daily login. Users authenticate once per year with a magic link, then use PIN for all subsequent logins.
+
+**See `SESSION_CONFIG.md` for detailed instructions.**
+
+---
+
 ### Step 1: Apply Supabase Migrations
 
 **Choose ONE of these three methods:**

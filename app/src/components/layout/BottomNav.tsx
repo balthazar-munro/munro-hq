@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { MessageSquare, Image, Settings } from 'lucide-react'
+import { MessageSquare, Image as ImageIcon, Settings } from 'lucide-react'
 import styles from './BottomNav.module.css'
 
 interface BottomNavProps {
@@ -22,7 +22,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
         href="/photos" 
         className={`${styles.navItem} ${activeTab === 'photos' ? styles.active : ''}`}
       >
-        <Image size={24} />
+        <ImageIcon size={24} />
         <span>Photos</span>
       </Link>
       <Link 

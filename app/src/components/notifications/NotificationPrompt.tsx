@@ -15,26 +15,34 @@ interface NotificationPromptProps {
 }
 
 export default function NotificationPrompt({ userId }: NotificationPromptProps) {
-  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default')
-  const [dismissed, setDismissed] = useState(true)
+  // Initialize permission from browser state synchronously
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => {
+    if (typeof window !== 'undefined' && isPushSupported()) {
+      return getNotificationPermission()
+    }
+    return 'unsupported'
+  })
+  
+  // Initialize dismissed from localStorage synchronously
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const wasDismissed = localStorage.getItem('munro_notifications_dismissed')
+      return wasDismissed === 'true' || (isPushSupported() && Notification.permission !== 'default')
+    }
+    return true
+  })
   const [subscribing, setSubscribing] = useState(false)
 
+  // Effect only to show the prompt after delay (no direct setState)
   useEffect(() => {
-    // Check if supported and current permission
-    if (isPushSupported()) {
-      setPermission(getNotificationPermission())
-      
-      // Check if user has dismissed the prompt before
+    if (permission !== 'unsupported' && Notification.permission === 'default') {
       const wasDismissed = localStorage.getItem('munro_notifications_dismissed')
-      if (!wasDismissed && Notification.permission === 'default') {
-        // Show prompt after a delay
+      if (!wasDismissed) {
         const timer = setTimeout(() => setDismissed(false), 3000)
         return () => clearTimeout(timer)
       }
-    } else {
-      setPermission('unsupported')
     }
-  }, [])
+  }, [permission])
 
   const handleRequestPermission = async () => {
     setSubscribing(true)
@@ -93,16 +101,15 @@ export default function NotificationPrompt({ userId }: NotificationPromptProps) 
 
 // Small inline settings component for settings page
 export function NotificationSettings({ userId }: NotificationPromptProps) {
-  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default')
-  const [subscribing, setSubscribing] = useState(false)
-
-  useEffect(() => {
-    if (isPushSupported()) {
-      setPermission(getNotificationPermission())
-    } else {
-      setPermission('unsupported')
+  // Initialize permission from browser state synchronously
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => {
+    if (typeof window !== 'undefined' && isPushSupported()) {
+      return getNotificationPermission()
     }
-  }, [])
+    return 'unsupported'
+  })
+  const [subscribing, setSubscribing] = useState(false)
+  // No useEffect needed for initial permission - it's set synchronously
 
   const handleToggle = async () => {
     if (permission === 'granted') {

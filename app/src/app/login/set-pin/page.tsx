@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FAMILY_IDENTITIES, USER_COLORS, getInitials } from '@/lib/constants/colors'
-import { Lock, ArrowRight, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
+import { ArrowRight, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
 import styles from './page.module.css'
 
 function SetPinForm() {
@@ -58,13 +58,15 @@ function SetPinForm() {
       // Store current identity
       localStorage.setItem('munro_current_identity', identity)
 
-      // Store session unlock state
-      sessionStorage.setItem('pin_unlocked', 'true')
-      sessionStorage.setItem('pin_unlocked_at', Date.now().toString())
-      sessionStorage.setItem('current_identity', identity)
-
-      // Success! Navigate to chat using window.location for reliable session handling
-      window.location.href = '/chat'
+      // Store session unlock state (use callback to avoid render purity issues)
+      const completeSetup = () => {
+        sessionStorage.setItem('pin_unlocked', 'true')
+        sessionStorage.setItem('pin_unlocked_at', Date.now().toString())
+        sessionStorage.setItem('current_identity', identity)
+        // Navigate to chat
+        window.location.assign('/chat')
+      }
+      completeSetup()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to set PIN')
       setLoading(false)

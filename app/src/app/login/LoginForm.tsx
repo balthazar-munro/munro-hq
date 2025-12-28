@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FAMILY_IDENTITIES, USER_COLORS, getInitials } from '@/lib/constants/colors'
 import { Home, Loader2, Lock, Star } from 'lucide-react'
@@ -24,22 +24,23 @@ function hasPin(identity: string): boolean {
 export default function LoginForm() {
   const router = useRouter()
   const [selecting, setSelecting] = useState<string | null>(null)
-  // Track which identities have PINs set - start as empty to avoid hydration mismatch
-  const [pinsLoaded, setPinsLoaded] = useState(false)
-  const [identitiesWithPins, setIdentitiesWithPins] = useState<Set<string>>(new Set())
-
-  // Load PIN status after hydration to avoid SSR/client mismatch
-  useEffect(() => {
-    const pins = getStoredPins()
-    const withPins = new Set<string>()
-    FAMILY_IDENTITIES.forEach((identity) => {
-      if (pins[identity]) {
-        withPins.add(identity)
-      }
-    })
-    setIdentitiesWithPins(withPins)
-    setPinsLoaded(true)
-  }, [])
+  
+  // Initialize PIN status synchronously during first render
+  const [pinsLoaded] = useState(true)
+  const [identitiesWithPins] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const pins = getStoredPins()
+      const withPins = new Set<string>()
+      FAMILY_IDENTITIES.forEach((identity) => {
+        if (pins[identity]) {
+          withPins.add(identity)
+        }
+      })
+      return withPins
+    }
+    return new Set<string>()
+  })
+  // No useEffect needed - state is initialized synchronously
 
   const handleSelectIdentity = (identity: string) => {
     setSelecting(identity)

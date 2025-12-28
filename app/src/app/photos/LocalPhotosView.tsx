@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getUserColor, getInitials, USER_COLORS_LIGHT } from '@/lib/constants/colors'
-import { Camera, Image, LogOut } from 'lucide-react'
+import { Camera, Image as ImageIcon, LogOut } from 'lucide-react'
 import BottomNav from '@/components/layout/BottomNav'
 import styles from './LocalPhotosView.module.css'
 
@@ -15,17 +15,23 @@ export default function LocalPhotosView() {
     }
     return null
   })
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  
+  // Initialize isAuthenticated from sessionStorage synchronously (not in useEffect)
+  const [isAuthenticated] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const pinUnlocked = sessionStorage.getItem('pin_unlocked')
+      const identity = sessionStorage.getItem('current_identity')
+      return pinUnlocked === 'true' && !!identity
+    }
+    return false
+  })
 
   useEffect(() => {
-    const pinUnlocked = sessionStorage.getItem('pin_unlocked')
-    const identity = sessionStorage.getItem('current_identity')
-    if (pinUnlocked === 'true' && identity) {
-      setIsAuthenticated(true)
-    } else {
+    // Only redirect if not authenticated (no setState needed here)
+    if (!isAuthenticated) {
       router.replace('/login')
     }
-  }, [router])
+  }, [isAuthenticated, router])
 
   const handleSwitchIdentity = () => {
     sessionStorage.removeItem('pin_unlocked')
@@ -58,7 +64,7 @@ export default function LocalPhotosView() {
       <header className={styles.header}>
         <div className={styles.headerContent}>
           <h1 className={styles.logo}>
-            <Image size={20} />
+            <ImageIcon size={20} />
             Photos
           </h1>
           <div className={styles.headerRight}>

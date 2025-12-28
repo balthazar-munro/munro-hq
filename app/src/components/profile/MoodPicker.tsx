@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Tables } from '@/lib/supabase/database.types'
-import { Smile, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import styles from './MoodPicker.module.css'
 
 const MOOD_PRESETS = [

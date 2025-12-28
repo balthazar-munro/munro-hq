@@ -7,8 +7,28 @@ This guide walks you through the **one-time setup** for Munro HQ. After this is 
 ## Prerequisites
 
 - Supabase project created
-- All migrations run (001 through 012)
+- All migrations run (001 through 015)
+- Session duration configured (see SESSION_CONFIG.md)
+- Redirect URLs configured in Supabase (see below)
 - App deployed to production (Vercel or similar)
+
+### Configure Redirect URLs (CRITICAL!)
+
+Before creating users, configure redirect URLs in Supabase:
+
+1. Go to **Authentication** → **URL Configuration**
+2. Set **Site URL** to your production URL:
+   ```
+   https://your-app.vercel.app
+   ```
+3. Add **Redirect URLs**:
+   ```
+   https://your-app.vercel.app/auth/callback
+   https://your-app.vercel.app/**
+   ```
+4. Click **Save**
+
+Without this, magic links won't work!
 
 ---
 
@@ -185,6 +205,78 @@ Before going live:
 - [ ] Each family member has received their magic link
 - [ ] Each family member has claimed identity + set PIN
 - [ ] Test sending a message in Munro HQ chat
+
+---
+
+## 🔧 Troubleshooting
+
+### Issue: "No active session. Please complete identity verification first"
+
+**Cause**: The magic link didn't create a session, or session cookies aren't being set.
+
+**Solutions**:
+
+1. **Check redirect URLs are configured**:
+   - Go to Supabase Dashboard → Authentication → URL Configuration
+   - Ensure Site URL matches your deployed app
+   - Ensure `/auth/callback` is in Redirect URLs list
+
+2. **Use the debug page**:
+   - Navigate to `/debug-auth` in your app
+   - This shows your current session status
+   - Follow the recommendations shown
+
+3. **Request a new magic link**:
+   - Go to `/login/request-link`
+   - Enter your email
+   - Click the NEW magic link
+   - Should work now!
+
+4. **Check browser cookies**:
+   - Magic links require cookies enabled
+   - Try in a different browser
+   - Clear cookies and try again
+
+5. **Verify user is confirmed**:
+   - In Supabase Dashboard → Authentication → Users
+   - Check if user status shows "Confirmed"
+   - If not, user wasn't created with "Auto Confirm" checked
+
+### Issue: Magic link redirects to wrong page
+
+**Cause**: The auth callback isn't determining the correct redirect.
+
+**Solution**:
+- Navigate to `/debug-auth` to see your current state
+- Manually go to:
+  - `/claim-identity` if you haven't claimed an identity
+  - `/login/set-pin?identity=YourName` if you have identity but no PIN
+  - `/login/enter-pin?identity=YourName` if you have both
+
+### Issue: "Identity already claimed" error
+
+**Cause**: Someone else already claimed that identity.
+
+**Solutions**:
+1. Check who claimed it:
+   ```sql
+   SELECT family_identity, created_at FROM profiles WHERE family_identity IS NOT NULL;
+   ```
+2. To reset (if needed):
+   ```sql
+   UPDATE profiles
+   SET family_identity = NULL, pin_hash = NULL
+   WHERE family_identity = 'Balthazar';
+   ```
+
+### Issue: Can't set PIN after claiming identity
+
+**Cause**: Session expired between claiming identity and setting PIN.
+
+**Solution**:
+- Request a new magic link at `/login/request-link`
+- Click the link
+- Will redirect you to `/login/set-pin` with your claimed identity
 
 ---
 

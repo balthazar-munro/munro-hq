@@ -35,13 +35,11 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Public routes that don't require Supabase auth
-  // Note: App routes are included because we have dual-auth (Supabase + PIN)
-  // Client-side wrappers handle auth for PIN users
-  const isPublicRoute = 
-    pathname.startsWith('/login') || 
-    pathname.startsWith('/invite') ||
+  const isPublicRoute =
+    pathname.startsWith('/login') ||
     pathname.startsWith('/offline') ||
     pathname.startsWith('/pin') ||
+    pathname.startsWith('/claim-identity') ||
     pathname === '/'
 
   // If not authenticated via Supabase and trying to access protected route

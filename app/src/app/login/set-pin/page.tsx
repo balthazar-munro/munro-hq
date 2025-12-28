@@ -24,7 +24,7 @@ function SetPinForm() {
   const isValidIdentity = FAMILY_IDENTITIES.includes(identity as typeof FAMILY_IDENTITIES[number])
   const color = isValidIdentity ? USER_COLORS[identity as keyof typeof USER_COLORS] : '#5c4033'
 
-  // Check if user has a Supabase session (for users who signed up via invite)
+  // Check if user has a Supabase session
   useEffect(() => {
     async function checkSession() {
       const { data: { user } } = await supabase.auth.getUser()

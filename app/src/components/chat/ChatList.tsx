@@ -20,7 +20,7 @@ export default function ChatList({
     return (
       <div className={styles.empty}>
         <p>No chats yet</p>
-        <p className={styles.hint}>Invite family members to get started</p>
+        <p className={styles.hint}>Start a conversation with a family member</p>
       </div>
     )
   }

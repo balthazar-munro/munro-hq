@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { FAMILY_IDENTITIES, USER_COLORS, getInitials } from '@/lib/constants/colors'
-import { Loader2, X } from 'lucide-react'
+import { Loader2, UserPlus, AlertCircle } from 'lucide-react'
 import styles from './page.module.css'
 
 interface IdentityStatus {
@@ -13,55 +13,60 @@ interface IdentityStatus {
   color: string
 }
 
-export default function SelectIdentityPage() {
-  const params = useParams()
+export default function ClaimIdentityPage() {
   const router = useRouter()
-  const code = params.code as string
+  const supabase = createClient()
 
   const [loading, setLoading] = useState(true)
   const [identities, setIdentities] = useState<IdentityStatus[]>([])
-  const [selecting, setSelecting] = useState<string | null>(null)
+  const [claiming, setClaiming] = useState<string | null>(null)
   const [error, setError] = useState('')
-
-  const supabase = createClient()
 
   useEffect(() => {
     async function checkAuthAndLoadIdentities() {
       // Check if user is authenticated
       const { data: { user } } = await supabase.auth.getUser()
-      
+
       if (!user) {
-        // Not authenticated, redirect to invite page to sign up
-        router.push(`/invite/${code}`)
+        // Not authenticated - redirect to login
+        router.push('/login')
         return
       }
 
-      // Check if user already has an identity (by checking display_name)
+      // Check if user already has an identity
       const { data: profile } = await supabase
         .from('profiles')
-        .select('display_name')
+        .select('family_identity')
         .eq('id', user.id)
         .single()
 
-      const knownIdentities = ['Balthazar', 'Olympia', 'Casi', 'Peter', 'Delphine']
-      if (profile?.display_name && knownIdentities.includes(profile.display_name)) {
-        // Already has identity, go to PIN setup
-        router.push(`/invite/${code}/set-pin`)
+      if (profile?.family_identity) {
+        // Already has identity - check if PIN is set
+        const { data: profileWithPin } = await supabase
+          .from('profiles_safe')
+          .select('has_pin')
+          .eq('id', user.id)
+          .single()
+
+        if (profileWithPin?.has_pin) {
+          router.push('/chat')
+        } else {
+          router.push(`/login/set-pin?identity=${encodeURIComponent(profile.family_identity)}`)
+        }
         return
       }
 
-      // Load which identities are claimed by checking all profiles
+      // Load which identities are claimed
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('display_name')
+        .select('family_identity')
+        .not('family_identity', 'is', null)
 
-      const claimed = new Set(
-        profiles?.map(p => p.display_name).filter(n => knownIdentities.includes(n))
-      )
-      
+      const claimedSet = new Set(profiles?.map(p => p.family_identity) || [])
+
       setIdentities(FAMILY_IDENTITIES.map(id => ({
         identity: id,
-        is_claimed: claimed.has(id),
+        is_claimed: claimedSet.has(id),
         color: USER_COLORS[id]
       })))
 
@@ -69,30 +74,29 @@ export default function SelectIdentityPage() {
     }
 
     checkAuthAndLoadIdentities()
-  }, [code, router, supabase])
+  }, [router, supabase])
 
-  const handleSelectIdentity = async (identity: string) => {
-    setSelecting(identity)
+  const handleClaimIdentity = async (identity: string) => {
+    setClaiming(identity)
     setError('')
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      // Simply update the user's display_name to claim the identity
-      // This works without the migration - uses existing display_name field
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ display_name: identity })
-        .eq('id', user.id)
+      // Call the claim_my_identity function
+      const { data: success, error: rpcError } = await supabase.rpc('claim_my_identity', {
+        chosen_identity: identity
+      })
 
-      if (updateError) throw updateError
+      if (rpcError) throw rpcError
+      if (!success) throw new Error('Failed to claim identity - it may already be taken')
 
       // Success! Navigate to PIN setup
-      router.push(`/invite/${code}/set-pin`)
+      router.push(`/login/set-pin?identity=${encodeURIComponent(identity)}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to claim identity')
-      setSelecting(null)
+      setClaiming(null)
     }
   }
 
@@ -110,29 +114,30 @@ export default function SelectIdentityPage() {
   return (
     <div className={styles.container}>
       <div className={`${styles.card} ${styles.slideUp}`}>
-        <h1 className={styles.title}>Who are you?</h1>
-        <p className={styles.subtitle}>Select your identity to join Munro HQ</p>
+        <div className={styles.icon}>
+          <UserPlus size={32} />
+        </div>
+        <h1 className={styles.title}>Welcome to Munro HQ!</h1>
+        <p className={styles.subtitle}>Select your identity to get started</p>
 
         <div className={styles.identityGrid}>
           {identities.map((item) => (
             <button
               key={item.identity}
               className={`${styles.identityButton} ${item.is_claimed ? styles.claimed : ''}`}
-              style={{ 
+              style={{
                 '--accent-color': item.color,
                 borderColor: item.is_claimed ? 'var(--color-border)' : item.color,
               } as React.CSSProperties}
-              onClick={() => handleSelectIdentity(item.identity)}
-              disabled={item.is_claimed || selecting !== null}
+              onClick={() => handleClaimIdentity(item.identity)}
+              disabled={item.is_claimed || claiming !== null}
             >
-              <div 
+              <div
                 className={styles.avatar}
                 style={{ backgroundColor: item.is_claimed ? 'var(--color-muted)' : item.color }}
               >
-                {selecting === item.identity ? (
+                {claiming === item.identity ? (
                   <Loader2 size={20} className={styles.spinner} />
-                ) : item.is_claimed ? (
-                  <X size={20} />
                 ) : (
                   getInitials(item.identity)
                 )}
@@ -147,6 +152,7 @@ export default function SelectIdentityPage() {
 
         {error && (
           <div className={styles.error}>
+            <AlertCircle size={16} />
             {error}
           </div>
         )}

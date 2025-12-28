@@ -268,11 +268,6 @@ export default function SettingsPage() {
             <span className={styles.value}>{identity}</span>
           </div>
 
-          {!isSupabaseUser && (
-            <p className={styles.hint}>
-              To change your profile picture, please sign up with an email via the invite system.
-            </p>
-          )}
         </section>
 
         {/* PIN Section */}

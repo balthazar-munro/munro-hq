@@ -1,16 +1,6 @@
 -- Migration 011: Daily Prompt System
 
--- 1. Create a special 'Munrobot' user in profiles if not exists
-INSERT INTO public.profiles (id, display_name, avatar_url, created_at)
-VALUES (
-  '00000000-0000-0000-0000-000000000001', -- Fixed UUID for the bot
-  'Munrobot 🤖',
-  NULL,
-  NOW()
-)
-ON CONFLICT (id) DO NOTHING;
-
--- 2. Create the Prompts table
+-- 1. Create the Prompts table
 CREATE TABLE IF NOT EXISTS public.daily_prompts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   question TEXT NOT NULL,
@@ -18,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.daily_prompts (
   used_at TIMESTAMPTZ -- When it was last asked
 );
 
--- 3. Seed some prompts
+-- 2. Seed some prompts
 INSERT INTO public.daily_prompts (question, category) VALUES 
 ('What was the best part of your day?', 'reflection'),
 ('Share a photo of your lunch!', 'photo'),
@@ -30,7 +20,7 @@ INSERT INTO public.daily_prompts (question, category) VALUES
 ('What is the funniest thing that happened today?', 'fun')
 ON CONFLICT DO NOTHING;
 
--- 4. Function to trigger a daily prompt (to be called by cron/edge function)
+-- 3. Function to trigger a daily prompt (to be called by cron/edge function)
 CREATE OR REPLACE FUNCTION public.trigger_daily_prompt()
 RETURNS VOID
 LANGUAGE plpgsql
@@ -59,7 +49,7 @@ BEGIN
     INSERT INTO public.messages (chat_id, sender_id, content)
     VALUES (
       v_chat.id,
-      '00000000-0000-0000-0000-000000000001', -- Munrobot
+      NULL, -- System message (Munrobot)
       '🌟 Daily Prompt: ' || v_prompt.question
     );
   END LOOP;

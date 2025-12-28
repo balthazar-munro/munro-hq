@@ -206,16 +206,20 @@ export default function ChatRoom({ chatId, currentUserId, profiles }: ChatRoomPr
             const nextMessage = messages[index + 1]
             const prevMessage = messages[index - 1]
             const showAvatar = !prevMessage || prevMessage.sender_id !== message.sender_id
+            
             const profile = getProfile(message.sender_id)
             const readers = getReadersForMessage(message, nextMessage)
+            
+            const isSystem = !message.sender_id
+            const senderName = isSystem ? 'Munrobot 🤖' : (profile?.display_name || 'Unknown')
 
             return (
               <div key={message.id}>
                 <MessageBubble
                   message={message}
                   isOwn={message.sender_id === currentUserId}
-                  senderName={profile?.display_name || 'Unknown'}
-                  senderIdentity={profile?.display_name}
+                  senderName={senderName}
+                  senderIdentity={isSystem ? 'system' : profile?.display_name}
                   showAvatar={showAvatar}
                   media={message.media}
                 />

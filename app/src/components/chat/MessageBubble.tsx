@@ -27,6 +27,7 @@ export default function MessageBubble({
   const userColor = getUserColor(senderIdentity || senderName)
 
   const getMediaUrl = (path: string) => {
+    if (path.startsWith('blob:')) return path
     const { data } = supabase.storage.from('media').getPublicUrl(path)
     return data.publicUrl
   }

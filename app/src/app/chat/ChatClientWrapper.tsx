@@ -43,8 +43,27 @@ export default function ChatClientWrapper({ children }: ChatClientWrapperProps) 
           const { data: { session } } = await supabase.auth.getSession()
           
           if (session) {
-            console.log('🔄 [ChatClientWrapper] Found Supabase session, refreshing server components')
-            router.refresh()
+            console.log('🔄 [ChatClientWrapper] Found Supabase session')
+            
+            // If we have a session but no identity, fetch it
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('display_name')
+              .eq('id', session.user.id)
+              .single()
+
+            if (profile) {
+              console.log('✅ [ChatClientWrapper] Restored identity from session')
+              sessionStorage.setItem('current_identity', profile.display_name)
+              sessionStorage.setItem('pin_unlocked', 'true') // Assume session implies unlocked for now
+              setAuthStatus('authenticated')
+              router.refresh()
+            } else {
+              // Valid session but no profile? Rare edge case, maybe new user
+              console.warn('⚠️ [ChatClientWrapper] Session exists but no profile found')
+              setAuthStatus('unauthenticated')
+              router.replace('/login')
+            }
             return
           }
         } catch (error) {

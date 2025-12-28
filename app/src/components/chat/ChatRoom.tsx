@@ -98,6 +98,25 @@ export default function ChatRoom({ chatId, currentUserId, profiles }: ChatRoomPr
           }
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'media' },
+        (payload) => {
+          const newMedia = payload.new as Tables<'media'>
+          // Only process if we have the parent message in state
+          setMessages(prev => prev.map(msg => {
+            if (msg.id === newMedia.message_id) {
+              // Avoid duplicates
+              if (msg.media?.some(m => m.id === newMedia.id)) return msg
+              return {
+                ...msg,
+                media: [...(msg.media || []), newMedia]
+              }
+            }
+            return msg
+          }))
+        }
+      )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }

@@ -83,6 +83,7 @@ export default function PinLockPage() {
         // Store unlock state
         sessionStorage.setItem('pin_unlocked', 'true')
         sessionStorage.setItem('pin_unlocked_at', Date.now().toString())
+        sessionStorage.setItem('current_identity', userName)
         router.push('/chat')
       } else {
         setError('Incorrect PIN')
@@ -94,7 +95,7 @@ export default function PinLockPage() {
     } finally {
       setVerifying(false)
     }
-  }, [pin, router, supabase])
+  }, [pin, router, supabase, userName])
 
   // Auto-submit when 4+ digits entered
   useEffect(() => {

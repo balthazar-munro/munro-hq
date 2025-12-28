@@ -320,7 +320,19 @@ export interface Database {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_safe: {
+        Row: {
+          id: string
+          display_name: string
+          avatar_url: string | null
+          created_at: string
+          family_identity: string | null
+          accent_color: string | null
+          has_pin: boolean
+          is_locked_out: boolean
+        }
+        Relationships: []
+      }
     }
     Functions: {
       verify_pin: {
@@ -341,6 +353,12 @@ export interface Database {
         Args: {
           user_uuid: string
           identity: string
+        }
+        Returns: boolean
+      }
+      claim_my_identity: {
+        Args: {
+          chosen_identity: string
         }
         Returns: boolean
       }

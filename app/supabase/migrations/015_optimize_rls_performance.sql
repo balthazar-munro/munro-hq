@@ -220,9 +220,8 @@ CREATE POLICY "Users can view read receipts in their chats"
   TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM public.messages m
-      JOIN public.chat_members cm ON cm.chat_id = m.chat_id
-      WHERE m.id = message_reads.message_id
+      SELECT 1 FROM public.chat_members cm
+      WHERE cm.chat_id = message_reads.chat_id
         AND cm.user_id = (select auth.uid())
     )
   );
@@ -234,9 +233,8 @@ CREATE POLICY "Users can update their own read receipt"
   WITH CHECK (
     user_id = (select auth.uid()) AND
     EXISTS (
-      SELECT 1 FROM public.messages m
-      JOIN public.chat_members cm ON cm.chat_id = m.chat_id
-      WHERE m.id = message_reads.message_id
+      SELECT 1 FROM public.chat_members cm
+      WHERE cm.chat_id = message_reads.chat_id
         AND cm.user_id = (select auth.uid())
     )
   );

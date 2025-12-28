@@ -18,14 +18,16 @@ export default async function PhotosPage() {
       .eq('id', user.id)
       .single()
 
-    // Fetch all media - RLS will filter to only user's chats
-    const { data: media } = await supabase
+    // Fetch latest media - Limit to 20 for initial load
+    // Client component will handle "Load More"
+    const { data: initialMedia } = await supabase
       .from('media')
       .select(`
         *,
         uploader:profiles!media_uploader_id_fkey(display_name)
       `)
       .order('created_at', { ascending: false })
+      .limit(20)
 
     // Fetch all profiles for display
     const { data: profiles } = await supabase
@@ -37,7 +39,7 @@ export default async function PhotosPage() {
         <Header profile={profile} />
         <main className={styles.main}>
           <PhotosTimeline 
-            media={media || []} 
+            initialMedia={initialMedia || []} 
             profiles={profiles || []}
           />
         </main>

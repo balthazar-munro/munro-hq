@@ -14,22 +14,32 @@ export interface Database {
           id: string
           display_name: string
           avatar_url: string | null
+          status_emoji: string | null
+          status_text: string | null
+          status_updated_at: string | null
           created_at: string
         }
         Insert: {
           id: string
           display_name: string
           avatar_url?: string | null
+          status_emoji?: string | null
+          status_text?: string | null
+          status_updated_at?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           display_name?: string
           avatar_url?: string | null
+          status_emoji?: string | null
+          status_text?: string | null
+          status_updated_at?: string | null
           created_at?: string
         }
         Relationships: []
       }
+      /* ... other tables ... */
       invites: {
         Row: {
           id: string
@@ -177,7 +187,7 @@ export interface Database {
           message_id: string
           uploader_id: string | null
           storage_path: string
-          file_type: 'image' | 'video'
+          file_type: 'image' | 'video' | 'audio'
           file_size: number | null
           width: number | null
           height: number | null
@@ -188,7 +198,7 @@ export interface Database {
           message_id: string
           uploader_id?: string | null
           storage_path: string
-          file_type: 'image' | 'video'
+          file_type: 'image' | 'video' | 'audio'
           file_size?: number | null
           width?: number | null
           height?: number | null
@@ -199,7 +209,7 @@ export interface Database {
           message_id?: string
           uploader_id?: string | null
           storage_path?: string
-          file_type?: 'image' | 'video'
+          file_type?: 'image' | 'video' | 'audio'
           file_size?: number | null
           width?: number | null
           height?: number | null
@@ -257,12 +267,79 @@ export interface Database {
           }
         ]
       }
+      message_reads: {
+        Row: {
+          chat_id: string
+          user_id: string
+          last_read_at: string
+        }
+        Insert: {
+          chat_id: string
+          user_id: string
+          last_read_at?: string
+        }
+        Update: {
+          chat_id?: string
+          user_id?: string
+          last_read_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'message_reads_chat_id_fkey'
+            columns: ['chat_id']
+            isOneToOne: false
+            referencedRelation: 'chats'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'message_reads_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      verify_pin: {
+        Args: {
+          user_uuid: string
+          pin_input: string
+        }
+        Returns: boolean
+      }
+      set_pin: {
+        Args: {
+          user_uuid: string
+          new_pin: string
+        }
+        Returns: boolean
+      }
+      claim_identity: {
+        Args: {
+          user_uuid: string
+          identity: string
+        }
+        Returns: boolean
+      }
+      get_available_identities: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          identity: string
+          is_claimed: boolean
+          color: string
+        }[]
+      }
+      get_user_color: {
+        Args: {
+          identity: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

@@ -63,7 +63,13 @@ export default function MessageBubble({
           <div className={styles.mediaGrid}>
             {media.map((item) => (
               <div key={item.id} className={styles.mediaItem}>
-                {item.file_type === 'video' ? (
+                {item.file_type === 'audio' ? (
+                  <audio
+                    src={getMediaUrl(item.storage_path)}
+                    controls
+                    className={styles.audio}
+                  />
+                ) : item.file_type === 'video' ? (
                   <video
                     src={getMediaUrl(item.storage_path)}
                     controls

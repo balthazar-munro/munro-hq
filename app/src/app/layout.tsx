@@ -1,10 +1,15 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Outfit } from 'next/font/google'
 import './globals.css'
 
 const inter = Inter({ 
   subsets: ['latin'],
   variable: '--font-inter',
+})
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
 })
 
 export const metadata: Metadata = {
@@ -46,7 +51,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body className={inter.variable}>
+      <body className={`${inter.variable} ${outfit.variable}`}>
         {children}
         <ServiceWorkerRegistration />
       </body>

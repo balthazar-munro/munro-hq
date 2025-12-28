@@ -97,3 +97,31 @@
     grid-template-columns: repeat(6, 1fr);
   }
 }
+
+.loadMoreContainer {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 0 4rem;
+}
+
+.loadMoreBtn {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 0.75rem 1.5rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.loadMoreBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.loadMoreBtn:not(:disabled):hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+  transform: translateY(-1px);
+}

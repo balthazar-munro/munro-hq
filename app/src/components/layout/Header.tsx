@@ -12,9 +12,11 @@ interface HeaderProps {
   chatName?: string
 }
 
+import MoodPicker from '../profile/MoodPicker'
+
 export default function Header({ profile, showBackButton, onBack, chatName }: HeaderProps) {
   return (
-    <header className={styles.header}>
+    <header className={`${styles.header} glass`}>
       <div className={styles.left}>
         {showBackButton ? (
           <button onClick={onBack} className={styles.backButton}>
@@ -27,6 +29,8 @@ export default function Header({ profile, showBackButton, onBack, chatName }: He
       </div>
 
       <div className={styles.right}>
+        {profile && <MoodPicker profile={profile} />}
+        
         <Link href="/invite/create" className={styles.iconButton} title="Invite family member">
           <UserPlus size={20} />
         </Link>

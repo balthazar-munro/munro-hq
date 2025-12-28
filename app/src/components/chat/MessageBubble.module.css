@@ -95,6 +95,12 @@
   cursor: pointer;
 }
 
+.audio {
+  width: 100%;
+  max-width: 250px;
+  margin-top: 4px;
+}
+
 @media (max-width: 768px) {
   .container {
     max-width: 90%;

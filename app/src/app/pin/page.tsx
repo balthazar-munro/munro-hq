@@ -69,20 +69,32 @@ export default function PinLockPage() {
     setError('')
 
     try {
-      // For now, accept any 4+ digit PIN as valid
-      // Will be enforced properly after migration runs
-      if (pin.length >= 4) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Session expired')
+
+      const { data: isValid, error: rpcError } = await supabase.rpc('verify_pin', {
+        user_uuid: user.id,
+        pin_input: pin
+      })
+
+      if (rpcError) throw rpcError
+
+      if (isValid) {
         // Store unlock state
         sessionStorage.setItem('pin_unlocked', 'true')
         sessionStorage.setItem('pin_unlocked_at', Date.now().toString())
         router.push('/chat')
+      } else {
+        setError('Incorrect PIN')
+        // Check if we are now locked out by re-fetching profile safe view
+        // (optional optimization, but good for UX)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed')
     } finally {
       setVerifying(false)
     }
-  }, [pin, router])
+  }, [pin, router, supabase])
 
   // Auto-submit when 4+ digits entered
   useEffect(() => {

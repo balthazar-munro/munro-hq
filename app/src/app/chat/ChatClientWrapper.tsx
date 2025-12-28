@@ -43,9 +43,8 @@ export default function ChatClientWrapper({ children }: ChatClientWrapperProps) 
           const { data: { session } } = await supabase.auth.getSession()
           
           if (session) {
-            console.log('🔄 [ChatClientWrapper] Found Supabase session, reloading page for proper render')
-            // Force a full page reload so server-side can detect the session
-            window.location.reload()
+            console.log('🔄 [ChatClientWrapper] Found Supabase session, refreshing server components')
+            router.refresh()
             return
           }
         } catch (error) {

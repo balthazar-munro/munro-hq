@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Send, ImagePlus, X, Loader2 } from 'lucide-react'
+import { Send, ImagePlus, X, Loader2, Mic } from 'lucide-react'
+import AudioRecorder from './AudioRecorder'
 import styles from './MessageComposer.module.css'
 
 interface MessageComposerProps {
@@ -13,6 +14,7 @@ export default function MessageComposer({ onSend }: MessageComposerProps) {
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [sending, setSending] = useState(false)
   const [previews, setPreviews] = useState<string[]>([])
+  const [isRecording, setIsRecording] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -61,6 +63,19 @@ export default function MessageComposer({ onSend }: MessageComposerProps) {
     }
   }
 
+  const handleVoiceComplete = async (blob: Blob) => {
+    setIsRecording(false)
+    setSending(true)
+    try {
+      const file = new File([blob], 'voice-note.webm', { type: 'audio/webm' })
+      await onSend('', [file])
+    } catch (err) {
+      console.error('Failed to send voice note:', err)
+    } finally {
+      setSending(false)
+    }
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -74,6 +89,17 @@ export default function MessageComposer({ onSend }: MessageComposerProps) {
       textarea.style.height = 'auto'
       textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
     }
+  }
+
+  if (isRecording) {
+    return (
+      <div className={styles.composer}>
+        <AudioRecorder 
+          onRecordingComplete={handleVoiceComplete}
+          onCancel={() => setIsRecording(false)}
+        />
+      </div>
+    )
   }
 
   return (
@@ -100,6 +126,16 @@ export default function MessageComposer({ onSend }: MessageComposerProps) {
       )}
 
       <div className={styles.inputRow}>
+        <button
+          type="button"
+          className={styles.mediaButton}
+          onClick={() => setIsRecording(true)}
+          disabled={sending || content.length > 0 || mediaFiles.length > 0}
+          title="Record Voice Note"
+        >
+          <Mic size={22} />
+        </button>
+
         <button
           type="button"
           className={styles.mediaButton}

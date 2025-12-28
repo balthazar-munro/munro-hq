@@ -7,6 +7,10 @@ import MessageBubble from './MessageBubble'
 import MessageComposer from './MessageComposer'
 import styles from './ChatRoom.module.css'
 
+import MessageReceipts from './MessageReceipts'
+
+// ... existing imports
+
 interface Message extends Tables<'messages'> {
   media?: Tables<'media'>[]
 }
@@ -20,79 +24,93 @@ interface ChatRoomProps {
 export default function ChatRoom({ chatId, currentUserId, profiles }: ChatRoomProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
+  const [reads, setReads] = useState<{user_id: string, last_read_at: string}[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [])
+  // Update read receipt
+  const markAsRead = useCallback(async () => {
+    await supabase
+      .from('message_reads')
+      .upsert({
+        chat_id: chatId,
+        user_id: currentUserId,
+        last_read_at: new Date().toISOString()
+      })
+  }, [chatId, currentUserId, supabase])
 
-  // Fetch messages
+  // Initial Fetch & Subscription setup
   useEffect(() => {
-    async function fetchMessages() {
+    async function init() {
       setLoading(true)
-      const { data } = await supabase
+
+      // 1. Messages
+      const { data: msgs } = await supabase
         .from('messages')
-        .select(`
-          *,
-          media(*)
-        `)
+        .select(`*, media(*)`)
         .eq('chat_id', chatId)
         .order('created_at', { ascending: true })
         .limit(100)
 
-      if (data) {
-        setMessages(data)
-      }
+      if (msgs) setMessages(msgs)
+
+      // 2. Read Receipts
+      const { data: readData } = await supabase
+        .from('message_reads')
+        .select('user_id, last_read_at')
+        .eq('chat_id', chatId)
+      
+      if (readData) setReads(readData)
+
       setLoading(false)
+      markAsRead()
     }
 
-    fetchMessages()
-  }, [chatId, supabase])
+    init()
 
-  // Subscribe to new messages via Realtime
-  useEffect(() => {
+    // 3. Realtime Subscriptions
     const channel = supabase
-      .channel(`chat-messages-${chatId}`)
+      .channel(`chat-room-${chatId}`)
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `chat_id=eq.${chatId}`,
-        },
-        async (payload) => {
-          console.log('🔔 Realtime message received:', payload)
-          
-          // Check if we already have this message (e.g., from optimistic update)
-          const messageId = payload.new.id as string
-          setMessages((prev) => {
-            if (prev.some(m => m.id === messageId)) {
-              return prev // Already have it
-            }
-            // Add the new message
-            return [...prev, payload.new as Message]
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
+        (payload) => {
+          const newMessage = payload.new as Message
+          setMessages(prev => {
+            if (prev.some(m => m.id === newMessage.id)) return prev
+            // Mark as read when receiving new message while in chat
+            markAsRead()
+            return [...prev, newMessage]
           })
         }
       )
-      .subscribe((status) => {
-        console.log('🔔 Realtime subscription status:', status)
-      })
+      .on(
+        'postgres_changes', 
+        { event: '*', schema: 'public', table: 'message_reads', filter: `chat_id=eq.${chatId}` },
+        (payload) => {
+          // Refresh reads state
+          const newRead = payload.new as {user_id: string, last_read_at: string}
+          if (newRead) {
+            setReads(prev => {
+              const others = prev.filter(r => r.user_id !== newRead.user_id)
+              return [...others, newRead]
+            })
+          }
+        }
+      )
+      .subscribe()
 
-    return () => {
-      console.log('🔔 Unsubscribing from realtime')
-      supabase.removeChannel(channel)
-    }
-  }, [chatId, supabase])
+    return () => { supabase.removeChannel(channel) }
+  }, [chatId, supabase, markAsRead])
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom
   useEffect(() => {
-    scrollToBottom()
-  }, [messages, scrollToBottom])
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
 
   const handleSendMessage = async (content: string, mediaFiles?: File[]) => {
-    // Optimistically add message to UI immediately
+    // Optimistically add message
     const tempId = `temp-${Date.now()}`
     const optimisticMessage: Message = {
       id: tempId,
@@ -104,68 +122,76 @@ export default function ChatRoom({ chatId, currentUserId, profiles }: ChatRoomPr
     
     setMessages((prev) => [...prev, optimisticMessage])
     
-    // Create message in database
-    const { data: message, error: messageError } = await supabase
+    const { data: message, error } = await supabase
       .from('messages')
-      .insert({
-        chat_id: chatId,
-        sender_id: currentUserId,
-        content: content || null,
-      })
+      .insert({ chat_id: chatId, sender_id: currentUserId, content: content || null })
       .select()
       .single()
 
-    if (messageError || !message) {
-      console.error('Failed to send message:', messageError)
-      // Remove optimistic message on failure
-      setMessages((prev) => prev.filter(m => m.id !== tempId))
-      alert('Failed to send message: ' + (messageError?.message || 'Unknown error'))
+    if (error || !message) {
+      console.error('Send error:', error)
+      setMessages(prev => prev.filter(m => m.id !== tempId))
       return
     }
 
-    // Replace optimistic message with real one
-    setMessages((prev) => prev.map(m => m.id === tempId ? { ...message, media: [] } : m))
+    // Replace optimistic
+    setMessages(prev => prev.map(m => m.id === tempId ? { ...message, media: [] } : m))
+    markAsRead()
 
-    // Upload media if present
-    if (mediaFiles && mediaFiles.length > 0) {
+    // Handle Media
+    if (mediaFiles?.length) {
       for (const file of mediaFiles) {
-        const fileExt = file.name.split('.').pop()
+        const fileExt = file.name.split('.').pop() || 'bin'
         const fileName = `${currentUserId}/${message.id}/${Date.now()}.${fileExt}`
         
         const { error: uploadError } = await supabase.storage
           .from('media')
           .upload(fileName, file)
 
-        if (uploadError) {
-          console.error('Failed to upload media:', uploadError)
-          continue
-        }
+        if (!uploadError) {
+          let fileType: 'image' | 'video' | 'audio' = 'image'
+          if (file.type.startsWith('video/')) fileType = 'video'
+          else if (file.type.startsWith('audio/')) fileType = 'audio'
 
-        // Create media record
-        const isVideo = file.type.startsWith('video/')
-        await supabase.from('media').insert({
-          message_id: message.id,
-          uploader_id: currentUserId,
-          storage_path: fileName,
-          file_type: isVideo ? 'video' : 'image',
-          file_size: file.size,
-        })
+          await supabase.from('media').insert({
+            message_id: message.id,
+            uploader_id: currentUserId,
+            storage_path: fileName,
+            file_type: fileType,
+            file_size: file.size,
+          })
+        }
       }
     }
   }
 
-  const getProfile = (userId: string | null) => {
-    return profiles.find((p) => p.id === userId)
+  const getProfile = (userId: string | null) => profiles.find((p) => p.id === userId)
+
+  // Logic to find who has read up to this message
+  // A user has read a message if their last_read_at >= message.created_at
+  // AND they haven't read a newer message (we render their face at the *latest* read message)
+  const getReadersForMessage = (msg: Message, nextMsg: Message | undefined) => {
+    return reads.filter(r => {
+      if (r.user_id === currentUserId) return false // Don't show own face
+      
+      const readAt = new Date(r.last_read_at).getTime()
+      const msgTime = new Date(msg.created_at).getTime()
+      const nextMsgTime = nextMsg ? new Date(nextMsg.created_at).getTime() : Infinity
+
+      // They read this message
+      // AND (there is no next message OR they haven't read the next message yet)
+      return readAt >= msgTime && readAt < nextMsgTime
+    }).map(r => {
+      const p = getProfile(r.user_id)
+      return {
+        user_id: r.user_id,
+        name: p?.display_name || 'Unknown',
+        avatar_url: p?.avatar_url || null
+      }
+    })
   }
 
-  if (loading) {
-    return (
-      <div className={styles.loading}>
-        <div className="spinner" />
-        <p>Loading messages...</p>
-      </div>
-    )
-  }
+  if (loading) return <div className={styles.loading}><div className="spinner" /><p>Loading...</p></div>
 
   return (
     <div className={styles.container}>
@@ -177,20 +203,24 @@ export default function ChatRoom({ chatId, currentUserId, profiles }: ChatRoomPr
           </div>
         ) : (
           messages.map((message, index) => {
+            const nextMessage = messages[index + 1]
             const prevMessage = messages[index - 1]
             const showAvatar = !prevMessage || prevMessage.sender_id !== message.sender_id
             const profile = getProfile(message.sender_id)
+            const readers = getReadersForMessage(message, nextMessage)
 
             return (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                isOwn={message.sender_id === currentUserId}
-                senderName={profile?.display_name || 'Unknown'}
-                senderIdentity={profile?.display_name}
-                showAvatar={showAvatar}
-                media={message.media}
-              />
+              <div key={message.id}>
+                <MessageBubble
+                  message={message}
+                  isOwn={message.sender_id === currentUserId}
+                  senderName={profile?.display_name || 'Unknown'}
+                  senderIdentity={profile?.display_name}
+                  showAvatar={showAvatar}
+                  media={message.media}
+                />
+                <MessageReceipts readers={readers} />
+              </div>
             )
           })
         )}

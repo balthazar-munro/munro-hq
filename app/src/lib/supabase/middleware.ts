@@ -42,9 +42,6 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/invite') ||
     pathname.startsWith('/offline') ||
     pathname.startsWith('/pin') ||
-    pathname.startsWith('/chat') ||     // Allow for PIN-auth users
-    pathname.startsWith('/photos') ||   // Allow for PIN-auth users
-    pathname.startsWith('/settings') || // Allow for PIN-auth users
     pathname === '/'
 
   // If not authenticated via Supabase and trying to access protected route

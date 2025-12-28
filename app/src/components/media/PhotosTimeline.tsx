@@ -12,7 +12,7 @@ interface MediaWithMeta extends Tables<'media'> {
 }
 
 interface PhotosTimelineProps {
-  media: MediaWithMeta[]
+  initialMedia: MediaWithMeta[]
   profiles: Pick<Tables<'profiles'>, 'id' | 'display_name' | 'avatar_url'>[]
 }
 
@@ -22,7 +22,11 @@ interface GroupedMedia {
   items: MediaWithMeta[]
 }
 
-export default function PhotosTimeline({ media, profiles }: PhotosTimelineProps) {
+export default function PhotosTimeline({ initialMedia, profiles }: PhotosTimelineProps) {
+  const [allMedia, setAllMedia] = useState<MediaWithMeta[]>(initialMedia)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(initialMedia.length >= 20)
+  
   const [selectedMedia, setSelectedMedia] = useState<MediaWithMeta | null>(null)
   const [viewerIndex, setViewerIndex] = useState(0)
   const supabase = createClient()
@@ -32,11 +36,44 @@ export default function PhotosTimeline({ media, profiles }: PhotosTimelineProps)
     return data.publicUrl
   }
 
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return
+
+    setLoadingMore(true)
+    const currentCount = allMedia.length
+    
+    try {
+      const { data: newMedia, error } = await supabase
+        .from('media')
+        .select(`
+          *,
+          uploader:profiles!media_uploader_id_fkey(display_name)
+        `)
+        .order('created_at', { ascending: false })
+        .range(currentCount, currentCount + 19) // Fetch next 20
+
+      if (error) throw error
+
+      if (newMedia && newMedia.length > 0) {
+        setAllMedia(prev => [...prev, ...newMedia])
+        if (newMedia.length < 20) {
+          setHasMore(false)
+        }
+      } else {
+        setHasMore(false)
+      }
+    } catch (err) {
+      console.error('Error loading more photos:', err)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
   const groupedMedia = useMemo(() => {
     const groups: GroupedMedia[] = []
     let currentGroup: GroupedMedia | null = null
 
-    media.forEach((item) => {
+    allMedia.forEach((item) => {
       const date = parseISO(item.created_at)
       const dateStr = format(date, 'yyyy-MM-dd')
 
@@ -65,7 +102,7 @@ export default function PhotosTimeline({ media, profiles }: PhotosTimelineProps)
     })
 
     return groups
-  }, [media])
+  }, [allMedia])
 
   const handleMediaClick = (item: MediaWithMeta, index: number) => {
     setSelectedMedia(item)
@@ -76,7 +113,7 @@ export default function PhotosTimeline({ media, profiles }: PhotosTimelineProps)
     return profiles.find((p) => p.id === userId)
   }
 
-  if (media.length === 0) {
+  if (allMedia.length === 0) {
     return (
       <div className={styles.empty}>
         <div className={styles.emptyIcon}>📷</div>
@@ -96,7 +133,7 @@ export default function PhotosTimeline({ media, profiles }: PhotosTimelineProps)
               <button
                 key={item.id}
                 className={styles.gridItem}
-                onClick={() => handleMediaClick(item, media.indexOf(item))}
+                onClick={() => handleMediaClick(item, allMedia.indexOf(item))}
               >
                 {item.file_type === 'video' ? (
                   <div className={styles.videoThumb}>
@@ -120,9 +157,21 @@ export default function PhotosTimeline({ media, profiles }: PhotosTimelineProps)
         </section>
       ))}
 
+      {hasMore && (
+        <div className={styles.loadMoreContainer}>
+          <button 
+            onClick={loadMore} 
+            disabled={loadingMore}
+            className={styles.loadMoreBtn}
+          >
+            {loadingMore ? 'Loading...' : 'Load More Photos'}
+          </button>
+        </div>
+      )}
+
       {selectedMedia && (
         <MediaViewer
-          media={media}
+          media={allMedia}
           currentIndex={viewerIndex}
           onClose={() => setSelectedMedia(null)}
           onNavigate={setViewerIndex}

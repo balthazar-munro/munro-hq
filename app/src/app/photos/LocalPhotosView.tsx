@@ -86,27 +86,20 @@ export default function LocalPhotosView() {
           <div className={styles.emptyIcon}>
             <Camera size={64} strokeWidth={1.5} />
           </div>
-          <h2>Your Photo Gallery</h2>
+          <h2>Gallery Offline</h2>
           <p className={styles.emptyText}>
-            Photos and videos shared in family chats will appear here in a beautiful timeline.
+            To view the family photo timeline, you need to be connected to the cloud.
           </p>
           <p className={styles.emptyHint}>
-            Start by sending photos in your chats!
+            Please check your internet connection or log in again to sync latest photos.
           </p>
-        </div>
-
-        {/* Placeholder grid to show layout */}
-        <div className={styles.placeholderSection}>
-          <h3 className={styles.dateLabel}>Sample Gallery Layout</h3>
-          <div className={styles.grid}>
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className={styles.placeholderItem}>
-                <div className={styles.placeholderInner}>
-                  <Camera size={24} strokeWidth={1.5} />
-                </div>
-              </div>
-            ))}
-          </div>
+          <button 
+             onClick={() => router.push('/login')}
+             className={styles.switchButton}
+             style={{ marginTop: '1rem', width: 'auto', padding: '0.5rem 1rem' }}
+          >
+            Reconnect
+          </button>
         </div>
       </main>
 

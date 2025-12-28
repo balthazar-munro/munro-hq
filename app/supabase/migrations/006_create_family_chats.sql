@@ -43,47 +43,48 @@ BEGIN
   RAISE NOTICE 'Created Parents chat: %', parents_chat_id;
 
   -- =====================================================
-  -- 2. Parent + Kid chats (6 chats total)
-  -- Parents: Peter, Delphine
-  -- Children: Balthazar, Olympia, Casi
+  -- 2. Main Family Chat (all 5 members)
   -- =====================================================
-  
-  -- Peter + Balthazar
-  INSERT INTO chats (name, is_group) VALUES ('Peter & Balthazar', TRUE)
+  INSERT INTO chats (name, is_group) VALUES ('Munro HQ', TRUE)
   RETURNING id INTO new_chat_id;
   INSERT INTO chat_members (chat_id, user_id) VALUES
-    (new_chat_id, peter_id), (new_chat_id, balthazar_id);
-  
-  -- Peter + Olympia
-  INSERT INTO chats (name, is_group) VALUES ('Peter & Olympia', TRUE)
-  RETURNING id INTO new_chat_id;
-  INSERT INTO chat_members (chat_id, user_id) VALUES
-    (new_chat_id, peter_id), (new_chat_id, olympia_id);
-  
-  -- Peter + Casi
-  INSERT INTO chats (name, is_group) VALUES ('Peter & Casi', TRUE)
-  RETURNING id INTO new_chat_id;
-  INSERT INTO chat_members (chat_id, user_id) VALUES
-    (new_chat_id, peter_id), (new_chat_id, casi_id);
-  
-  -- Delphine + Balthazar
-  INSERT INTO chats (name, is_group) VALUES ('Delphine & Balthazar', TRUE)
-  RETURNING id INTO new_chat_id;
-  INSERT INTO chat_members (chat_id, user_id) VALUES
-    (new_chat_id, delphine_id), (new_chat_id, balthazar_id);
-  
-  -- Delphine + Olympia
-  INSERT INTO chats (name, is_group) VALUES ('Delphine & Olympia', TRUE)
-  RETURNING id INTO new_chat_id;
-  INSERT INTO chat_members (chat_id, user_id) VALUES
-    (new_chat_id, delphine_id), (new_chat_id, olympia_id);
-  
-  -- Delphine + Casi
-  INSERT INTO chats (name, is_group) VALUES ('Delphine & Casi', TRUE)
-  RETURNING id INTO new_chat_id;
-  INSERT INTO chat_members (chat_id, user_id) VALUES
-    (new_chat_id, delphine_id), (new_chat_id, casi_id);
+    (new_chat_id, peter_id),
+    (new_chat_id, delphine_id),
+    (new_chat_id, balthazar_id),
+    (new_chat_id, olympia_id),
+    (new_chat_id, casi_id);
 
-  RAISE NOTICE 'Created all parent-child chats';
+  RAISE NOTICE 'Created Munro HQ main family chat: %', new_chat_id;
+
+  -- =====================================================
+  -- 3. Parent + Child chats (3 people each: BOTH parents + 1 child)
+  -- Per PRD requirement: Peter + Delphine + [child]
+  -- =====================================================
+
+  -- Parents + Balthazar
+  INSERT INTO chats (name, is_group) VALUES ('Parents & Balthazar', TRUE)
+  RETURNING id INTO new_chat_id;
+  INSERT INTO chat_members (chat_id, user_id) VALUES
+    (new_chat_id, peter_id),
+    (new_chat_id, delphine_id),
+    (new_chat_id, balthazar_id);
+
+  -- Parents + Olympia
+  INSERT INTO chats (name, is_group) VALUES ('Parents & Olympia', TRUE)
+  RETURNING id INTO new_chat_id;
+  INSERT INTO chat_members (chat_id, user_id) VALUES
+    (new_chat_id, peter_id),
+    (new_chat_id, delphine_id),
+    (new_chat_id, olympia_id);
+
+  -- Parents + Casi
+  INSERT INTO chats (name, is_group) VALUES ('Parents & Casi', TRUE)
+  RETURNING id INTO new_chat_id;
+  INSERT INTO chat_members (chat_id, user_id) VALUES
+    (new_chat_id, peter_id),
+    (new_chat_id, delphine_id),
+    (new_chat_id, casi_id);
+
+  RAISE NOTICE 'Created all parent-child 3-person chats';
 
 END $$;

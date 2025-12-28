@@ -7,15 +7,6 @@ import { FAMILY_IDENTITIES, USER_COLORS, getInitials } from '@/lib/constants/col
 import { Home, Loader2, Lock, Star } from 'lucide-react'
 import styles from './page.module.css'
 
-// Fallback: Check localStorage for PINs (offline/legacy mode)
-function getLocalStorePins(): Record<string, string> {
-  if (typeof window === 'undefined') return {}
-  try {
-    return JSON.parse(localStorage.getItem('munro_pins') || '{}')
-  } catch {
-    return {}
-  }
-}
 
 export default function LoginForm() {
   const router = useRouter()
@@ -28,28 +19,18 @@ export default function LoginForm() {
   useEffect(() => {
     async function loadPinStatus() {
       try {
-        // Use the RPC function to get identity status including has_pin
-        const { error } = await supabase.rpc('get_available_identities')
+        // Use profiles_safe view which exposes has_pin boolean without exposing pin_hash
+        const { data: profiles, error } = await supabase
+          .from('profiles_safe')
+          .select('display_name, has_pin')
 
         if (error) {
           console.warn('Could not fetch identities:', error)
-          // Fallback to localStorage
-          const localPins = getLocalStorePins()
-          const withPins = new Set<string>()
-          FAMILY_IDENTITIES.forEach((id) => {
-            if (localPins[id]) withPins.add(id)
-          })
-          setIdentitiesWithPins(withPins)
+          setIdentitiesWithPins(new Set())
         } else {
-          // Use database data - the RPC returns identity, is_claimed, and color
-          // We need to check profiles for has_pin separately
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('display_name, pin_hash')
-          
           const withPins = new Set<string>()
           profiles?.forEach((p) => {
-            if (p.pin_hash && FAMILY_IDENTITIES.includes(p.display_name as typeof FAMILY_IDENTITIES[number])) {
+            if (p.has_pin && FAMILY_IDENTITIES.includes(p.display_name as typeof FAMILY_IDENTITIES[number])) {
               withPins.add(p.display_name)
             }
           })
@@ -57,13 +38,7 @@ export default function LoginForm() {
         }
       } catch (err) {
         console.error('Failed to load PIN status:', err)
-        // Fallback to localStorage
-        const localPins = getLocalStorePins()
-        const withPins = new Set<string>()
-        FAMILY_IDENTITIES.forEach((id) => {
-          if (localPins[id]) withPins.add(id)
-        })
-        setIdentitiesWithPins(withPins)
+        setIdentitiesWithPins(new Set())
       } finally {
         setLoading(false)
       }

@@ -13,20 +13,23 @@ export default function Home() {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (user) {
-        // Supabase authenticated user
-        router.replace('/chat')
-        return
-      }
+        // Authenticated - check if they have claimed an identity
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('family_identity')
+          .eq('id', user.id)
+          .single()
 
-      // Check for local PIN session
-      const pinUnlocked = sessionStorage.getItem('pin_unlocked')
-      const currentIdentity = sessionStorage.getItem('current_identity')
-
-      if (pinUnlocked === 'true' && currentIdentity) {
-        // PIN authenticated user
-        router.replace('/chat')
+        if (!profile?.family_identity) {
+          // No identity claimed yet - redirect to claim page
+          router.replace('/claim-identity')
+        } else {
+          // Has identity - go to chat
+          // PIN check happens in ChatClientWrapper if needed
+          router.replace('/chat')
+        }
       } else {
-        // Not authenticated at all
+        // Not authenticated - go to login
         router.replace('/login')
       }
     }
@@ -34,7 +37,7 @@ export default function Home() {
     checkAuth()
   }, [router])
 
-  // Always show loading spinner while checking auth and redirecting
+  // Show loading spinner while checking auth and redirecting
   return (
     <div style={{
       display: 'flex',

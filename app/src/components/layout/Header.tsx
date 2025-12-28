@@ -1,7 +1,7 @@
 'use client'
 
 import { Tables } from '@/lib/supabase/database.types'
-import { ArrowLeft, Settings, UserPlus } from 'lucide-react'
+import { ArrowLeft, Settings } from 'lucide-react'
 import Link from 'next/link'
 import styles from './Header.module.css'
 
@@ -30,10 +30,7 @@ export default function Header({ profile, showBackButton, onBack, chatName }: He
 
       <div className={styles.right}>
         {profile && <MoodPicker profile={profile} />}
-        
-        <Link href="/invite/create" className={styles.iconButton} title="Invite family member">
-          <UserPlus size={20} />
-        </Link>
+
         <Link href="/settings" className={styles.iconButton} title="Settings">
           <Settings size={20} />
         </Link>

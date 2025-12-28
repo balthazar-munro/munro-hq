@@ -14,8 +14,8 @@ export type FamilyIdentity = typeof FAMILY_IDENTITIES[number]
 export const USER_COLORS: Record<FamilyIdentity, string> = {
   Balthazar: '#004225', // British racing green
   Olympia: '#40E0D0',   // Turquoise
-  Casi: '#1a365d',      // Dark blue (slightly lighter for better contrast)
-  Delphine: '#7c3aed',  // Purple (slightly brighter)
+  Casi: '#00008B',      // Dark blue
+  Delphine: '#800080',  // Purple
   Peter: '#7B3F00',     // Chocolate brown
 }
 
@@ -23,8 +23,8 @@ export const USER_COLORS: Record<FamilyIdentity, string> = {
 export const USER_COLORS_LIGHT: Record<FamilyIdentity, string> = {
   Balthazar: '#e6f2ed',
   Olympia: '#e6faf8',
-  Casi: '#e8eef5',
-  Delphine: '#f3e8ff',
+  Casi: '#e6e6ff',      // Light blue (for #00008B)
+  Delphine: '#f0e6f0',  // Light purple (for #800080)
   Peter: '#f5ebe0',
 }
 

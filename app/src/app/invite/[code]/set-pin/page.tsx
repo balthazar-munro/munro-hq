@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { storeSessionForIdentity } from '@/lib/auth/pin-auth'
 import { Lock, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
 import styles from './page.module.css'
 
@@ -84,12 +83,7 @@ export default function SetPinPage() {
       if (rpcError) throw rpcError
       if (!success) throw new Error('Failed to set PIN')
 
-      // Store Supabase session for later restoration (optional, for offline support)
-      if (identity) {
-        await storeSessionForIdentity(identity as 'Balthazar' | 'Olympia' | 'Casi' | 'Peter' | 'Delphine')
-      }
-
-      // Store unlock state in sessionStorage (for current browser session only)
+      // Store unlock state in sessionStorage (temporary session state)
       sessionStorage.setItem('pin_unlocked', 'true')
       sessionStorage.setItem('pin_unlocked_at', Date.now().toString())
       if (identity) {

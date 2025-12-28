@@ -64,28 +64,27 @@ function SetPinForm() {
     setError('')
 
     try {
-      // If user has a Supabase session, store PIN in database
-      if (userId) {
-        const { data: success, error: rpcError } = await supabase.rpc('set_pin', {
-          user_uuid: userId,
-          new_pin: pin
-        })
-
-        if (rpcError) throw rpcError
-        if (!success) throw new Error('Failed to set PIN in database')
-      } else {
-        // No Supabase session - store PIN locally as fallback
-        // This is for users who only use PIN-based local auth
-        const existingPins = JSON.parse(localStorage.getItem('munro_pins') || '{}')
-        existingPins[identity] = pin
-        localStorage.setItem('munro_pins', JSON.stringify(existingPins))
+      // Require Supabase session - no localStorage fallback
+      if (!userId) {
+        setError('No active session. Please complete identity verification first.')
+        setLoading(false)
+        return
       }
 
-      // Store unlock state in sessionStorage
+      // Store PIN in database only
+      const { data: success, error: rpcError } = await supabase.rpc('set_pin', {
+        user_uuid: userId,
+        new_pin: pin
+      })
+
+      if (rpcError) throw rpcError
+      if (!success) throw new Error('Failed to set PIN in database')
+
+      // Store unlock state in sessionStorage (temporary session state)
       sessionStorage.setItem('pin_unlocked', 'true')
       sessionStorage.setItem('pin_unlocked_at', Date.now().toString())
       sessionStorage.setItem('current_identity', identity)
-      
+
       // Navigate to chat
       window.location.assign('/chat')
     } catch (err) {

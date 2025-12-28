@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { FAMILY_IDENTITIES, USER_COLORS, getInitials } from '@/lib/constants/colors'
 import { Home, Loader2, Lock, Star } from 'lucide-react'
 import styles from './page.module.css'
 
-// PIN storage helpers
-function getStoredPins(): Record<string, string> {
+// Fallback: Check localStorage for PINs (offline/legacy mode)
+function getLocalStorePins(): Record<string, string> {
   if (typeof window === 'undefined') return {}
   try {
     return JSON.parse(localStorage.getItem('munro_pins') || '{}')
@@ -16,31 +17,60 @@ function getStoredPins(): Record<string, string> {
   }
 }
 
-function hasPin(identity: string): boolean {
-  const pins = getStoredPins()
-  return Boolean(pins[identity])
-}
-
 export default function LoginForm() {
   const router = useRouter()
+  const supabase = createClient()
   const [selecting, setSelecting] = useState<string | null>(null)
-  
-  // Initialize PIN status synchronously during first render
-  const [pinsLoaded] = useState(true)
-  const [identitiesWithPins] = useState<Set<string>>(() => {
-    if (typeof window !== 'undefined') {
-      const pins = getStoredPins()
-      const withPins = new Set<string>()
-      FAMILY_IDENTITIES.forEach((identity) => {
-        if (pins[identity]) {
-          withPins.add(identity)
+  const [loading, setLoading] = useState(true)
+  const [identitiesWithPins, setIdentitiesWithPins] = useState<Set<string>>(new Set())
+
+  // Fetch PIN status from database on mount
+  useEffect(() => {
+    async function loadPinStatus() {
+      try {
+        // Use the RPC function to get identity status including has_pin
+        const { error } = await supabase.rpc('get_available_identities')
+
+        if (error) {
+          console.warn('Could not fetch identities:', error)
+          // Fallback to localStorage
+          const localPins = getLocalStorePins()
+          const withPins = new Set<string>()
+          FAMILY_IDENTITIES.forEach((id) => {
+            if (localPins[id]) withPins.add(id)
+          })
+          setIdentitiesWithPins(withPins)
+        } else {
+          // Use database data - the RPC returns identity, is_claimed, and color
+          // We need to check profiles for has_pin separately
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('display_name, pin_hash')
+          
+          const withPins = new Set<string>()
+          profiles?.forEach((p) => {
+            if (p.pin_hash && FAMILY_IDENTITIES.includes(p.display_name as typeof FAMILY_IDENTITIES[number])) {
+              withPins.add(p.display_name)
+            }
+          })
+          setIdentitiesWithPins(withPins)
         }
-      })
-      return withPins
+      } catch (err) {
+        console.error('Failed to load PIN status:', err)
+        // Fallback to localStorage
+        const localPins = getLocalStorePins()
+        const withPins = new Set<string>()
+        FAMILY_IDENTITIES.forEach((id) => {
+          if (localPins[id]) withPins.add(id)
+        })
+        setIdentitiesWithPins(withPins)
+      } finally {
+        setLoading(false)
+      }
     }
-    return new Set<string>()
-  })
-  // No useEffect needed - state is initialized synchronously
+
+    loadPinStatus()
+  }, [supabase])
 
   const handleSelectIdentity = (identity: string) => {
     setSelecting(identity)
@@ -48,8 +78,8 @@ export default function LoginForm() {
     // Store the selected identity
     sessionStorage.setItem('selected_identity', identity)
     
-    // Check if this identity has a PIN set
-    if (hasPin(identity)) {
+    // Check if this identity has a PIN set (from database or local)
+    if (identitiesWithPins.has(identity)) {
       // Returning user - go to PIN entry
       router.push(`/login/enter-pin?identity=${encodeURIComponent(identity)}`)
     } else {
@@ -69,7 +99,7 @@ export default function LoginForm() {
 
         <div className={styles.identityGrid}>
           {FAMILY_IDENTITIES.map((identity) => {
-            const hasPinSet = pinsLoaded && identitiesWithPins.has(identity)
+            const hasPinSet = !loading && identitiesWithPins.has(identity)
             const color = USER_COLORS[identity]
             
             return (
@@ -94,7 +124,7 @@ export default function LoginForm() {
                   )}
                 </div>
                 <span className={styles.identityName}>{identity}</span>
-                {!pinsLoaded ? (
+                {loading ? (
                   // Show neutral state during loading to avoid hydration mismatch
                   <span className={styles.statusBadge}>
                     <Loader2 size={10} className={styles.spinner} />

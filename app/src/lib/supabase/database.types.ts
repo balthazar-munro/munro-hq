@@ -17,6 +17,12 @@ export interface Database {
           status_emoji: string | null
           status_text: string | null
           status_updated_at: string | null
+          family_identity: string | null
+          accent_color: string | null
+          pin_hash: string | null
+          pin_set_at: string | null
+          pin_failed_attempts: number
+          pin_lockout_until: string | null
           created_at: string
         }
         Insert: {
@@ -26,6 +32,12 @@ export interface Database {
           status_emoji?: string | null
           status_text?: string | null
           status_updated_at?: string | null
+          family_identity?: string | null
+          accent_color?: string | null
+          pin_hash?: string | null
+          pin_set_at?: string | null
+          pin_failed_attempts?: number
+          pin_lockout_until?: string | null
           created_at?: string
         }
         Update: {
@@ -35,6 +47,12 @@ export interface Database {
           status_emoji?: string | null
           status_text?: string | null
           status_updated_at?: string | null
+          family_identity?: string | null
+          accent_color?: string | null
+          pin_hash?: string | null
+          pin_set_at?: string | null
+          pin_failed_attempts?: number
+          pin_lockout_until?: string | null
           created_at?: string
         }
         Relationships: []

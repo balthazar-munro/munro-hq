@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { FAMILY_IDENTITIES, USER_COLORS, getInitials } from '@/lib/constants/colors'
 import { ArrowRight, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
 import styles from './page.module.css'
@@ -10,16 +11,29 @@ function SetPinForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const identity = searchParams.get('identity') || ''
+  const supabase = createClient()
   
   const [pin, setPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
   const [step, setStep] = useState<'enter' | 'confirm'>('enter')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
 
   // Validate identity
   const isValidIdentity = FAMILY_IDENTITIES.includes(identity as typeof FAMILY_IDENTITIES[number])
   const color = isValidIdentity ? USER_COLORS[identity as keyof typeof USER_COLORS] : '#5c4033'
+
+  // Check if user has a Supabase session (for users who signed up via invite)
+  useEffect(() => {
+    async function checkSession() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserId(user.id)
+      }
+    }
+    checkSession()
+  }, [supabase])
 
   const handlePinInput = (value: string, isConfirm: boolean) => {
     const digits = value.replace(/\D/g, '').slice(0, 6)
@@ -50,23 +64,30 @@ function SetPinForm() {
     setError('')
 
     try {
-      // Store PIN in localStorage
-      const existingPins = JSON.parse(localStorage.getItem('munro_pins') || '{}')
-      existingPins[identity] = pin
-      localStorage.setItem('munro_pins', JSON.stringify(existingPins))
-      
-      // Store current identity
-      localStorage.setItem('munro_current_identity', identity)
+      // If user has a Supabase session, store PIN in database
+      if (userId) {
+        const { data: success, error: rpcError } = await supabase.rpc('set_pin', {
+          user_uuid: userId,
+          new_pin: pin
+        })
 
-      // Store session unlock state (use callback to avoid render purity issues)
-      const completeSetup = () => {
-        sessionStorage.setItem('pin_unlocked', 'true')
-        sessionStorage.setItem('pin_unlocked_at', Date.now().toString())
-        sessionStorage.setItem('current_identity', identity)
-        // Navigate to chat
-        window.location.assign('/chat')
+        if (rpcError) throw rpcError
+        if (!success) throw new Error('Failed to set PIN in database')
+      } else {
+        // No Supabase session - store PIN locally as fallback
+        // This is for users who only use PIN-based local auth
+        const existingPins = JSON.parse(localStorage.getItem('munro_pins') || '{}')
+        existingPins[identity] = pin
+        localStorage.setItem('munro_pins', JSON.stringify(existingPins))
       }
-      completeSetup()
+
+      // Store unlock state in sessionStorage
+      sessionStorage.setItem('pin_unlocked', 'true')
+      sessionStorage.setItem('pin_unlocked_at', Date.now().toString())
+      sessionStorage.setItem('current_identity', identity)
+      
+      // Navigate to chat
+      window.location.assign('/chat')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to set PIN')
       setLoading(false)

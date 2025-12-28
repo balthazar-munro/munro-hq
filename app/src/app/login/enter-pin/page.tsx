@@ -2,6 +2,7 @@
 
 import { useState, Suspense, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { FAMILY_IDENTITIES, USER_COLORS, getInitials } from '@/lib/constants/colors'
 import { restoreSessionForIdentity, hasStoredSession } from '@/lib/auth/pin-auth'
 import { Loader2, AlertCircle, KeyRound, ArrowLeft } from 'lucide-react'
@@ -11,17 +12,30 @@ function EnterPinForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const identity = searchParams.get('identity') || ''
+  const supabase = createClient()
   
   const [pin, setPin] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState('')
   const [attempts, setAttempts] = useState(0)
+  const [userId, setUserId] = useState<string | null>(null)
   const [hasSupabaseSession, setHasSupabaseSession] = useState(false)
 
-  // Check if this identity has a stored Supabase session
+  // Check if this identity has a stored Supabase session or active session
   useEffect(() => {
-    setHasSupabaseSession(hasStoredSession(identity))
-  }, [identity])
+    async function checkSession() {
+      // First check for active Supabase session
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserId(user.id)
+        setHasSupabaseSession(true)
+      } else {
+        // Check for stored session that can be restored
+        setHasSupabaseSession(hasStoredSession(identity))
+      }
+    }
+    checkSession()
+  }, [identity, supabase])
 
   // Validate identity
   const isValidIdentity = FAMILY_IDENTITIES.includes(identity as typeof FAMILY_IDENTITIES[number])
@@ -40,19 +54,37 @@ function EnterPinForm() {
     setError('')
 
     try {
-      // Get stored PINs
-      const storedPins = JSON.parse(localStorage.getItem('munro_pins') || '{}')
-      const storedPin = storedPins[identity]
+      let isValid = false
 
-      if (pin === storedPin) {
+      // Try database verification first if we have a user ID
+      if (userId) {
+        const { data, error: rpcError } = await supabase.rpc('verify_pin', {
+          user_uuid: userId,
+          pin_input: pin
+        })
+
+        if (rpcError) {
+          console.warn('RPC error, falling back to local:', rpcError)
+        } else {
+          isValid = data === true
+        }
+      }
+
+      // Fallback to localStorage for offline or non-Supabase users
+      if (!isValid && !userId) {
+        const storedPins = JSON.parse(localStorage.getItem('munro_pins') || '{}')
+        const storedPin = storedPins[identity]
+        isValid = pin === storedPin
+      }
+
+      if (isValid) {
         // Correct PIN - store session state
-        localStorage.setItem('munro_current_identity', identity)
         sessionStorage.setItem('pin_unlocked', 'true')
         sessionStorage.setItem('pin_unlocked_at', Date.now().toString())
         sessionStorage.setItem('current_identity', identity)
         
-        // Try to restore Supabase session for real-time features
-        if (hasSupabaseSession) {
+        // Try to restore Supabase session for real-time features (if not already active)
+        if (!userId && hasSupabaseSession) {
           const restored = await restoreSessionForIdentity(identity)
           if (restored) {
             console.log('✅ Supabase session restored - full features enabled')
@@ -61,7 +93,7 @@ function EnterPinForm() {
           }
         }
         
-        // Navigate to chat using window.location for reliable session handling
+        // Navigate to chat
         window.location.href = '/chat'
       } else {
         // Wrong PIN
@@ -78,7 +110,7 @@ function EnterPinForm() {
     } finally {
       setVerifying(false)
     }
-  }, [pin, identity, attempts, hasSupabaseSession])
+  }, [pin, identity, attempts, userId, hasSupabaseSession, supabase])
 
   // Auto-submit when 4+ digits entered
   useEffect(() => {

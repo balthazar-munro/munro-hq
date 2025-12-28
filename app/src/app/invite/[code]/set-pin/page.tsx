@@ -71,19 +71,25 @@ export default function SetPinPage() {
     setError('')
 
     try {
-      // Store PIN in localStorage keyed by identity
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      // Store PIN in database via RPC (hashed with bcrypt)
+      const { data: success, error: rpcError } = await supabase.rpc('set_pin', {
+        user_uuid: user.id,
+        new_pin: pin
+      })
+
+      if (rpcError) throw rpcError
+      if (!success) throw new Error('Failed to set PIN')
+
+      // Store Supabase session for later restoration (optional, for offline support)
       if (identity) {
-        const existingPins = JSON.parse(localStorage.getItem('munro_pins') || '{}')
-        existingPins[identity] = pin
-        localStorage.setItem('munro_pins', JSON.stringify(existingPins))
-        
-        // Store Supabase session for later restoration
         await storeSessionForIdentity(identity as 'Balthazar' | 'Olympia' | 'Casi' | 'Peter' | 'Delphine')
       }
-      
-      localStorage.setItem('munro_pin_set_at', Date.now().toString())
 
-      // Store unlock state in sessionStorage
+      // Store unlock state in sessionStorage (for current browser session only)
       sessionStorage.setItem('pin_unlocked', 'true')
       sessionStorage.setItem('pin_unlocked_at', Date.now().toString())
       if (identity) {

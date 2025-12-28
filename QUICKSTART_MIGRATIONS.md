@@ -209,6 +209,29 @@ WHERE proname IN ('claim_my_identity', 'trigger_daily_prompt', 'get_user_chat_id
 
 All should show positive results (exists = true, enabled = true, search_path_config set).
 
+### Step 5: Optimize RLS performance (recommended)
+
+```sql
+-- From migration 015_optimize_rls_performance.sql
+-- This wraps all auth.uid() calls in SELECT for better performance
+-- and removes duplicate policies on messages table
+
+-- Note: This is a long migration. It's recommended to run the full migration file
+-- from app/supabase/migrations/015_optimize_rls_performance.sql
+
+-- Or use the verification query to check if optimization is needed:
+SELECT
+  schemaname,
+  tablename,
+  policyname
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND (qual LIKE '%auth.uid()%' OR with_check LIKE '%auth.uid()%')
+ORDER BY tablename, policyname;
+
+-- If this returns rows, run migration 015 to optimize them
+```
+
 ---
 
 ## Option 3: Run All Migrations
